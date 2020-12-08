@@ -259,6 +259,9 @@ func (osd *OsDetector) GetOSDistro(os string) (*Distro, error) {
 	if os == "linux" {
 		return osd.GetLinuxDistro()
 	}
+	if os == "windows" {
+		return osd.GetWindowsDistro()
+	}
 
 	return nil, errors.New("unsupported distro: " + os)
 }

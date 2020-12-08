@@ -1,0 +1,49 @@
+name: functional
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  download-ca:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Download CA Certificates
+      run: bash .github/ca-certificates-download.sh
+
+    - uses: actions/upload-artifact@master
+      with:
+        name: ca-certificates
+        path: ca-certificates.crt
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    needs: download-ca
+    strategy:
+      matrix:
+        operating-system: ['ubuntu:18.04', 'ubuntu:20.04', 'debian:8', 'debian:9', 'debian:10', 'centos:7', 'centos:8']
+    container: ${{ matrix.operating-system }}
+    steps:
+    - name: Set up Go 1.x
+      uses: actions/setup-go@v2
+      with:
+        go-version: ^1.15
+      id: go
+
+    - uses: actions/checkout@v2
+
+    - uses: actions/download-artifact@master
+      with:
+        name: ca-certificates
+
+    - name: Setup CA Certificates
+      run: bash .github/ca-certificates.sh
+
+    - name: Test
+      run: |
+        go run example/main.go
