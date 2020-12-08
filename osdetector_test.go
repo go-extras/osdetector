@@ -70,6 +70,30 @@ DISTRIB_DESCRIPTION="Ubuntu 18.04.3 LTS"
 	s.Equal("bionic", res.PseudoName)
 }
 
+func (s *OsDetectSuite) TestDebian10() {
+	fs := afero.NewMemMapFs()
+	_ = fs.MkdirAll("/etc", 0755)
+	_ = afero.WriteFile(fs, "/etc/os-release", []byte(`PRETTY_NAME="Debian GNU/Linux 10 (buster)"
+NAME="Debian GNU/Linux"
+VERSION_ID="10"
+VERSION="10 (buster)"
+VERSION_CODENAME=buster
+ID=debian
+HOME_URL="https://www.debian.org/"
+SUPPORT_URL="https://www.debian.org/support"
+BUG_REPORT_URL="https://bugs.debian.org/"
+`), 0644)
+
+	osd := NewOsDetector(fs)
+	res, err := osd.GetOSDistro("linux")
+	s.Nil(err)
+	s.Equal("Linux", res.Os)
+	s.Equal("Debian", res.BasedOn)
+	s.Equal("Debian", res.Dist)
+	s.Equal("10", res.Rev)
+	s.Equal("buster", res.PseudoName)
+}
+
 func TestUser(t *testing.T) {
 	suite.Run(t, new(OsDetectSuite))
 }

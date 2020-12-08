@@ -2,8 +2,8 @@ package osdetector
 
 import (
 	"errors"
-	"github.com/spf13/afero"
 	"github.com/go-extras/osdetector/internal/fileutils"
+	"github.com/spf13/afero"
 	"io/ioutil"
 	"regexp"
 	"strings"
@@ -44,9 +44,11 @@ var (
 	REOSSuSePseudoName = regexp.MustCompile(`CODENAME = (.*)(\n|\z)`)
 	REOSSuSeRev        = regexp.MustCompile(`VERSION = (.*)(\n|\z)`)
 
-	REOSDebianDist       = regexp.MustCompile(`DISTRIB_ID=(.*)(\n|\z)`)
-	REOSDebianRev        = regexp.MustCompile(`DISTRIB_RELEASE=(.*)(\n|\z)`)
-	REOSDebianPseudoName = regexp.MustCompile(`DISTRIB_CODENAME=(.*)(\n|\z)`)
+	REOSDebianOldDist       = regexp.MustCompile(`DISTRIB_ID=(.*)(\n|\z)`)
+	REOSDebianOldRev        = regexp.MustCompile(`DISTRIB_RELEASE=(.*)(\n|\z)`)
+	REOSDebianOldPseudoName = regexp.MustCompile(`DISTRIB_CODENAME=(.*)(\n|\z)`)
+
+	REOSDebianRev        = regexp.MustCompile(`^PRETTY_NAME="Debian GNU/Linux (\d+) \((.*)\)"$`)
 )
 
 type OsDetector struct {
@@ -94,7 +96,7 @@ func (osd *OsDetector) GetRedHatDistro() (*Distro, error) {
 	return distro, nil
 }
 
-func (osd *OsDetector) GetContainerOSorAmazonLinuxDistro() (*Distro, error) {
+func (osd *OsDetector) GetOSFromOSRelease() (*Distro, error) {
 	distro := &Distro{
 		Os: OsNameLinux,
 	}
@@ -114,6 +116,20 @@ func (osd *OsDetector) GetContainerOSorAmazonLinuxDistro() (*Distro, error) {
 			distro.BasedOn = OsBasedOnRedHat
 			distro.Dist = "Amazon Linux"
 			distro.Rev = "2"
+			return distro, nil
+		}
+		if strings.HasPrefix(line, "PRETTY_NAME=\"Debian GNU/Linux") {
+			distro.BasedOn = OsBasedOnDebian
+			distro.Dist = "Debian"
+			distro.Rev = UnknownRev
+
+			m := REOSDebianRev.FindStringSubmatch(line)
+			if len(m) > 0 {
+				distro.Rev = m[1]
+			}
+			if len(m) > 1 {
+				distro.PseudoName = m[2]
+			}
 			return distro, nil
 		}
 	}
@@ -176,21 +192,21 @@ func (osd *OsDetector) GetDebianDistro() (*Distro, error) {
 	}
 	debianRelease := string(data)
 
-	m := REOSDebianDist.FindStringSubmatch(debianRelease)
+	m := REOSDebianOldDist.FindStringSubmatch(debianRelease)
 	if len(m) > 0 {
 		distro.Dist = m[1]
 	} else {
 		distro.Dist = UnknownDistr
 	}
 
-	m = REOSDebianPseudoName.FindStringSubmatch(debianRelease)
+	m = REOSDebianOldPseudoName.FindStringSubmatch(debianRelease)
 	if len(m) > 0 {
 		distro.PseudoName = m[1]
 	} else {
 		distro.PseudoName = UnknownDistr
 	}
 
-	m = REOSDebianRev.FindStringSubmatch(debianRelease)
+	m = REOSDebianOldRev.FindStringSubmatch(debianRelease)
 	if len(m) > 0 {
 		distro.Rev = m[1]
 	} else {
@@ -231,7 +247,7 @@ func (osd *OsDetector) GetLinuxDistro() (*Distro, error) {
 
 	// ContainerOS / Amazon EC2 (should be the last!)
 	if exists, err := fileutils.FileExists(osd.fs, "/etc/os-release"); exists {
-		return osd.GetContainerOSorAmazonLinuxDistro()
+		return osd.GetOSFromOSRelease()
 	} else if err != nil {
 		return nil, err
 	}
