@@ -37,7 +37,7 @@ const (
 var (
 	REOSRedHatDist       = regexp.MustCompile(`(.*) release.*`)
 	REOSRedHatPseudoName = regexp.MustCompile(`\((.*)\)$`)
-	REOSRedHatRev        = regexp.MustCompile(`.* release (.*) \(.*`)
+	REOSRedHatRev        = regexp.MustCompile(`(?U).* release (.*)( \(.*\))?$`)
 
 	// REOSAmazonLinux2Dist = regexp.MustCompile(`VERSION_ID="(.*)(\n|\z)"`)
 
